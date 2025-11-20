@@ -1,0 +1,15 @@
+class AppConfig {
+  static const String supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'YOUR_SUPABASE_URL_HERE',
+  );
+
+  static const String supabaseAnonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'YOUR_SUPABASE_ANON_KEY_HERE',
+  );
+
+  // Secret key required for registration
+  static const String registrationSecretKey = 'YOUR_REGISTRATION_SECRET_KEY_HERE';
+}
+
