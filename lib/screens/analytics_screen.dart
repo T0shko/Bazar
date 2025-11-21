@@ -381,35 +381,57 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Action Types',
+              'Sales by Type',
               style: AppTheme.heading2(context).copyWith(color: textColor),
             ),
             const SizedBox(height: AppTheme.spacing16),
-            if (actionTypeCounts.isEmpty)
-              ModernCard(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppTheme.spacing32),
-                    child: Text(
-                      'No data available',
-                      style: AppTheme.bodyMedium(context).copyWith(color: mutedText),
+            Consumer<SalesProvider>(
+              builder: (context, salesProvider, child) {
+                final coffeeSales = salesProvider.getCoffeeSales();
+                final donationSales = salesProvider.getDonationSales();
+                final productSales = salesProvider.getProductSales();
+                final totalSales = coffeeSales + donationSales + productSales;
+
+                if (totalSales == 0) {
+                  return ModernCard(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppTheme.spacing32),
+                        child: Text(
+                          'No sales data available',
+                          style: AppTheme.bodyMedium(context).copyWith(color: mutedText),
+                        ),
+                      ),
                     ),
+                  );
+                }
+
+                final salesData = {
+                  'Donation': donationSales,
+                  'Coffee': coffeeSales,
+                  'Product Sales': productSales,
+                };
+
+                return ModernCard(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 300,
+                        child: PieChart(
+                          PieChartData(
+                            sections: _buildSalesPieChartSections(salesData, scheme),
+                            centerSpaceRadius: 60,
+                            sectionsSpace: 2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.spacing16),
+                      _buildLegend(salesData, totalSales, textColor, mutedText, scheme),
+                    ],
                   ),
-                ),
-              )
-            else
-              ModernCard(
-                child: SizedBox(
-                  height: 300,
-                  child: PieChart(
-                    PieChartData(
-                      sections: _buildPieChartSections(actionTypeCounts, scheme),
-                      centerSpaceRadius: 60,
-                      sectionsSpace: 2,
-                    ),
-                  ),
-                ),
-              ),
+                );
+              },
+            ),
             const SizedBox(height: AppTheme.spacing32),
             Text(
               'User Activity',
@@ -602,6 +624,96 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
         ),
       );
     }).toList();
+  }
+
+  List<PieChartSectionData> _buildSalesPieChartSections(
+    Map<String, double> salesData,
+    ColorScheme scheme,
+  ) {
+    final colors = {
+      'Donation': AppTheme.accentPink,
+      'Coffee': AppTheme.accentOrange,
+      'Product Sales': scheme.primary,
+    };
+    
+    final total = salesData.values.fold(0.0, (sum, amount) => sum + amount);
+    
+    return salesData.entries.where((entry) => entry.value > 0).map((entry) {
+      final type = entry.key;
+      final amount = entry.value;
+      final percentage = (amount / total * 100);
+      final color = colors[type] ?? scheme.secondary;
+      
+      return PieChartSectionData(
+        value: amount,
+        title: '${percentage.toStringAsFixed(1)}%',
+        color: color,
+        radius: 100,
+        titleStyle: AppTheme.bodySmall(context).copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildLegend(
+    Map<String, double> salesData,
+    double totalSales,
+    Color textColor,
+    Color mutedText,
+    ColorScheme scheme,
+  ) {
+    final colors = {
+      'Donation': AppTheme.accentPink,
+      'Coffee': AppTheme.accentOrange,
+      'Product Sales': scheme.primary,
+    };
+
+    return Column(
+      children: salesData.entries.where((entry) => entry.value > 0).map((entry) {
+        final type = entry.key;
+        final amount = entry.value;
+        final percentage = (amount / totalSales * 100);
+        final color = colors[type] ?? scheme.secondary;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing8),
+          child: Row(
+            children: [
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: AppTheme.spacing12),
+              Expanded(
+                child: Text(
+                  type,
+                  style: AppTheme.bodyMedium(context).copyWith(color: textColor),
+                ),
+              ),
+              Text(
+                '${amount.toStringAsFixed(2)} лв.',
+                style: AppTheme.bodyMedium(context).copyWith(
+                  color: textColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: AppTheme.spacing8),
+              Text(
+                '(${percentage.toStringAsFixed(1)}%)',
+                style: AppTheme.bodySmall(context).copyWith(color: mutedText),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
   }
 
   List<BarChartGroupData> _buildBarGroups(

@@ -1,4 +1,8 @@
+import 'dart:io' if (dart.library.html) 'dart:html';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/product.dart';
 import '../models/sale_record.dart';
 import 'action_log_service.dart';
@@ -8,6 +12,8 @@ class SupabaseService {
   final ActionLogService _actionLogService = ActionLogService();
   
   String? get _currentUserId => _client.auth.currentUser?.id;
+  
+  static const String _productImagesBucket = 'product-images';
 
   // Products CRUD operations
   Future<List<Product>> getProducts() async {
@@ -310,6 +316,93 @@ class SupabaseService {
             return SaleRecord.fromJson(saleJson, product: product);
           }).toList();
         });
+  }
+
+  // Image upload methods
+  Future<String> uploadProductImage(String productId, dynamic imageFile) async {
+    try {
+      // Check if bucket exists, if not provide helpful error
+      try {
+        // Try to list files in the bucket (empty list is fine, we just want to check if bucket exists)
+        await _client.storage.from(_productImagesBucket).list();
+      } catch (e) {
+        if (e.toString().contains('not found') || e.toString().contains('Bucket not found')) {
+          throw Exception(
+            'Storage bucket "$_productImagesBucket" not found. '
+            'Please create it in Supabase Dashboard:\n'
+            '1. Go to Storage in your Supabase dashboard\n'
+            '2. Click "New bucket"\n'
+            '3. Name it: $_productImagesBucket\n'
+            '4. Check "Public bucket"\n'
+            '5. Click "Create bucket"\n'
+            'Then run the storage policies SQL from STORAGE_SETUP.md'
+          );
+        }
+        rethrow;
+      }
+
+      final fileName = '$productId-${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final filePath = '$productId/$fileName';
+
+      // Upload the image file
+      // On web, imageFile is XFile, on mobile it's File
+      if (kIsWeb) {
+        // On web, convert XFile to bytes
+        final xFile = imageFile as XFile;
+        final bytes = await xFile.readAsBytes();
+        await _client.storage.from(_productImagesBucket).uploadBinary(
+          filePath,
+          bytes,
+          fileOptions: const FileOptions(
+            contentType: 'image/jpeg',
+            upsert: false,
+          ),
+        );
+      } else {
+        // On mobile/desktop, upload File directly
+        // File type is dart:io.File on mobile/desktop
+        final file = imageFile as File;
+        await _client.storage.from(_productImagesBucket).upload(
+          filePath,
+          file,
+          fileOptions: const FileOptions(
+            contentType: 'image/jpeg',
+            upsert: false,
+          ),
+        );
+      }
+
+      // Get the public URL
+      final imageUrl = _client.storage.from(_productImagesBucket).getPublicUrl(filePath);
+      return imageUrl;
+    } catch (e) {
+      if (e.toString().contains('not found') || e.toString().contains('Bucket not found')) {
+        rethrow; // Re-throw the helpful error message above
+      }
+      throw Exception('Failed to upload product image: $e');
+    }
+  }
+
+  Future<void> deleteProductImage(String imageUrl) async {
+    try {
+      // Extract the file path from the URL
+      final uri = Uri.parse(imageUrl);
+      final pathSegments = uri.pathSegments;
+      
+      // Find the index of the bucket name
+      final bucketIndex = pathSegments.indexOf(_productImagesBucket);
+      if (bucketIndex == -1 || bucketIndex == pathSegments.length - 1) {
+        throw Exception('Invalid image URL format');
+      }
+      
+      // Get the file path after the bucket name
+      final filePath = pathSegments.sublist(bucketIndex + 1).join('/');
+      
+      await _client.storage.from(_productImagesBucket).remove([filePath]);
+    } catch (e) {
+      // Log error but don't throw - image deletion is not critical
+      print('Failed to delete product image: $e');
+    }
   }
 }
 

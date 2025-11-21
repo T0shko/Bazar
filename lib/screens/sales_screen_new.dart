@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/sales_provider.dart';
 import '../models/product.dart';
 import '../models/sale_record.dart';
@@ -197,18 +198,62 @@ class SalesScreenNew extends StatelessWidget {
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.3),
+                        color: product.imageUrl == null
+                            ? Colors.white.withValues(alpha: 0.3)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        border: product.imageUrl != null
+                            ? Border.all(
+                                color: Colors.white.withValues(alpha: 0.3),
+                                width: 1.5,
+                              )
+                            : null,
                       ),
-                      child: Center(
-                        child: Text(
-                          product.name[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        child: product.imageUrl != null
+                            ? CachedNetworkImage(
+                                imageUrl: product.imageUrl!,
+                                fit: BoxFit.cover,
+                                width: 56,
+                                height: 56,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  child: Center(
+                                    child: Text(
+                                      product.name[0].toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  product.name[0].toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(width: AppTheme.spacing16),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../models/product.dart';
 import '../theme/app_theme.dart';
@@ -39,23 +40,73 @@ class ProductCard extends StatelessWidget {
                   width: 64,
                   height: 64,
                   decoration: BoxDecoration(
-                    gradient: gradients.primary,
+                    gradient: product.imageUrl == null ? gradients.primary : null,
+                    color: product.imageUrl != null ? Colors.transparent : null,
                     borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
                     boxShadow: [
                       BoxShadow(
-                        color: gradients.primary.colors.last
+                        color: (product.imageUrl == null
+                                ? gradients.primary.colors.last
+                                : scheme.primary)
                             .withValues(alpha: 0.28),
                         blurRadius: 18,
                         offset: const Offset(0, 12),
                       ),
                     ],
+                    border: product.imageUrl != null
+                        ? Border.all(
+                            color: scheme.primary.withValues(alpha: 0.2),
+                            width: 1.5,
+                          )
+                        : null,
                   ),
-                  child: Center(
-                    child: Text(
-                      product.name[0].toUpperCase(),
-                      style: AppTheme.heading3(context)
-                          .copyWith(color: Colors.white, fontSize: 22),
-                    ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                    child: product.imageUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: product.imageUrl!,
+                            fit: BoxFit.cover,
+                            width: 64,
+                            height: 64,
+                            placeholder: (context, url) => Container(
+                              decoration: BoxDecoration(
+                                gradient: gradients.primary,
+                              ),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              decoration: BoxDecoration(
+                                gradient: gradients.primary,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  product.name[0].toUpperCase(),
+                                  style: AppTheme.heading3(context).copyWith(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              product.name[0].toUpperCase(),
+                              style: AppTheme.heading3(context).copyWith(
+                                color: Colors.white,
+                                fontSize: 22,
+                              ),
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(width: AppTheme.spacing16),

@@ -13,3 +13,7 @@ class AppConfig {
   static const String registrationSecretKey = 'YOUR_REGISTRATION_SECRET_KEY_HERE';
 }
 
+
+
+
+

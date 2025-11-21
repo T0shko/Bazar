@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/sales_provider.dart';
 import '../models/product.dart';
 import '../models/sale_record.dart';
@@ -266,18 +267,62 @@ class _ProductSelectionScreenState extends State<ProductSelectionScreen> {
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.3),
+                        color: product.imageUrl == null
+                            ? Colors.white.withValues(alpha: 0.3)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        border: product.imageUrl != null
+                            ? Border.all(
+                                color: Colors.white.withValues(alpha: 0.3),
+                                width: 1.5,
+                              )
+                            : null,
                       ),
-                      child: Center(
-                        child: Text(
-                          product.name[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                        child: product.imageUrl != null
+                            ? CachedNetworkImage(
+                                imageUrl: product.imageUrl!,
+                                fit: BoxFit.cover,
+                                width: 56,
+                                height: 56,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  child: Center(
+                                    child: Text(
+                                      product.name[0].toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  product.name[0].toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(width: AppTheme.spacing16),
@@ -459,18 +504,62 @@ class _ProductSelectionCard extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                color: product.imageUrl == null
+                    ? AppTheme.primaryColor.withValues(alpha: 0.2)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                border: product.imageUrl != null
+                    ? Border.all(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                        width: 1.5,
+                      )
+                    : null,
               ),
-              child: Center(
-                child: Text(
-                  product.name[0].toUpperCase(),
-                  style: TextStyle(
-                    color: AppTheme.primaryColor,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                child: product.imageUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: product.imageUrl!,
+                        fit: BoxFit.cover,
+                        width: 48,
+                        height: 48,
+                        placeholder: (context, url) => Container(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                          child: Center(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                          child: Center(
+                            child: Text(
+                              product.name[0].toUpperCase(),
+                              style: TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          product.name[0].toUpperCase(),
+                          style: TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
               ),
             ),
             const SizedBox(width: AppTheme.spacing16),

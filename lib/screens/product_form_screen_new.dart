@@ -1,7 +1,15 @@
+import 'dart:io' if (dart.library.html) 'dart:html';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/product.dart';
 import '../providers/sales_provider.dart';
+import '../services/supabase_service.dart';
+import '../services/image_picker_service.dart';
+import '../services/file_helper.dart';
+import '../services/image_file_helper.dart';
 import '../theme/app_theme.dart';
 import '../widgets/modern_button.dart';
 import '../widgets/glass_container.dart';
@@ -18,6 +26,8 @@ class ProductFormScreenNew extends StatefulWidget {
 class _ProductFormScreenNewState extends State<ProductFormScreenNew>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+  final _supabaseService = SupabaseService();
+  final _imagePickerService = ImagePickerService();
   late TextEditingController _nameController;
   late TextEditingController _priceController;
   late TextEditingController _stockController;
@@ -25,6 +35,9 @@ class _ProductFormScreenNewState extends State<ProductFormScreenNew>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  dynamic _selectedImageFile; // File on mobile, XFile on web
+  String? _currentImageUrl;
+  bool _isUploadingImage = false;
 
   @override
   void initState() {
@@ -36,6 +49,7 @@ class _ProductFormScreenNewState extends State<ProductFormScreenNew>
         text: widget.product?.stockQuantity.toString() ?? '');
     _descriptionController =
         TextEditingController(text: widget.product?.description ?? '');
+    _currentImageUrl = widget.product?.imageUrl;
 
     _animationController = AnimationController(
       vsync: this,
@@ -72,19 +86,60 @@ class _ProductFormScreenNewState extends State<ProductFormScreenNew>
     super.dispose();
   }
 
+  Future<void> _pickAndCropImage() async {
+    try {
+      final imageFile = await _imagePickerService.pickAndCropImage(context);
+      
+      if (imageFile != null) {
+        setState(() {
+          _selectedImageFile = imageFile;
+          _currentImageUrl = null; // Clear old URL when new image is selected
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking image: ${e.toString()}'),
+            backgroundColor: AppTheme.error ?? Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _saveProduct() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final provider = Provider.of<SalesProvider>(context, listen: false);
-    final product = Product(
-      id: widget.product?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-      name: _nameController.text,
-      price: double.parse(_priceController.text),
-      stockQuantity: int.parse(_stockController.text),
-      description: _descriptionController.text,
-    );
+    setState(() {
+      _isUploadingImage = true;
+    });
 
     try {
+      final provider = Provider.of<SalesProvider>(context, listen: false);
+      String? imageUrl = _currentImageUrl;
+
+      // Upload new image if selected
+      if (_selectedImageFile != null) {
+        // Delete old image if exists
+        if (_currentImageUrl != null && widget.product != null) {
+          await _supabaseService.deleteProductImage(_currentImageUrl!);
+        }
+
+        // Upload new image
+        final productId = widget.product?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
+        imageUrl = await _supabaseService.uploadProductImage(productId, _selectedImageFile!);
+      }
+
+      final product = Product(
+        id: widget.product?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        name: _nameController.text,
+        price: double.parse(_priceController.text),
+        stockQuantity: int.parse(_stockController.text),
+        description: _descriptionController.text,
+        imageUrl: imageUrl,
+      );
+
       if (widget.product == null) {
         await provider.addProduct(product);
       } else {
@@ -120,6 +175,12 @@ class _ProductFormScreenNewState extends State<ProductFormScreenNew>
             ),
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingImage = false;
+        });
       }
     }
   }
@@ -175,7 +236,7 @@ class _ProductFormScreenNewState extends State<ProductFormScreenNew>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Hero Product Icon
+                  // Product Image Upload
                   Center(
                     child: TweenAnimationBuilder<double>(
                       tween: Tween(begin: 0.0, end: 1.0),
@@ -184,42 +245,129 @@ class _ProductFormScreenNewState extends State<ProductFormScreenNew>
                       builder: (context, value, child) {
                         return Transform.scale(
                           scale: value,
-                          child: Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: isDark
-                                    ? [
-                                        theme.colorScheme.primary,
-                                        theme.colorScheme.secondary,
-                                      ]
-                                    : [
-                                        theme.colorScheme.primary,
-                                        theme.colorScheme.primaryContainer,
-                                      ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius:
-                                  BorderRadius.circular(AppTheme.radiusXLarge),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: theme.colorScheme.primary
-                                      .withValues(alpha: 0.4),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 12),
+                          child: InkWell(
+                            onTap: _pickAndCropImage,
+                            borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
+                            child: Stack(
+                              children: [
+                                Container(
+                                  width: 120,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    gradient: _currentImageUrl != null || _selectedImageFile != null
+                                        ? null
+                                        : LinearGradient(
+                                            colors: isDark
+                                                ? [
+                                                    theme.colorScheme.primary,
+                                                    theme.colorScheme.secondary,
+                                                  ]
+                                                : [
+                                                    theme.colorScheme.primary,
+                                                    theme.colorScheme.primaryContainer,
+                                                  ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                    color: _currentImageUrl != null || _selectedImageFile != null
+                                        ? Colors.transparent
+                                        : null,
+                                    borderRadius:
+                                        BorderRadius.circular(AppTheme.radiusXLarge),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: theme.colorScheme.primary
+                                            .withValues(alpha: 0.4),
+                                        blurRadius: 24,
+                                        offset: const Offset(0, 12),
+                                      ),
+                                    ],
+                                    border: _currentImageUrl != null || _selectedImageFile != null
+                                        ? Border.all(
+                                            color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                                            width: 2,
+                                          )
+                                        : null,
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius:
+                                        BorderRadius.circular(AppTheme.radiusXLarge),
+                                    child: _selectedImageFile != null
+                                        ? _buildImagePreview(_selectedImageFile, theme)
+                                        : _currentImageUrl != null
+                                            ? CachedNetworkImage(
+                                                imageUrl: _currentImageUrl!,
+                                                fit: BoxFit.cover,
+                                                width: 120,
+                                                height: 120,
+                                                placeholder: (context, url) => Container(
+                                                  color: theme.colorScheme.surface,
+                                                  child: Center(
+                                                    child: CircularProgressIndicator(
+                                                      color: theme.colorScheme.primary,
+                                                    ),
+                                                  ),
+                                                ),
+                                                errorWidget: (context, url, error) => Icon(
+                                                  Icons.inventory_2_rounded,
+                                                  size: 56,
+                                                  color: theme.colorScheme.onPrimary,
+                                                ),
+                                              )
+                                            : Icon(
+                                                Icons.inventory_2_rounded,
+                                                size: 56,
+                                                color: theme.colorScheme.onPrimary,
+                                              ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Material(
+                                    color: theme.colorScheme.primary,
+                                    shape: const CircleBorder(),
+                                    elevation: 4,
+                                    child: Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.primary,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: theme.colorScheme.primary.withValues(alpha: 0.4),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Icon(
+                                        _currentImageUrl != null || _selectedImageFile != null
+                                            ? Icons.edit_rounded
+                                            : Icons.add_photo_alternate_rounded,
+                                        color: theme.colorScheme.onPrimary,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ],
-                            ),
-                            child: Icon(
-                              Icons.inventory_2_rounded,
-                              size: 56,
-                              color: theme.colorScheme.onPrimary,
                             ),
                           ),
                         );
                       },
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacing12),
+                  Center(
+                    child: Text(
+                      _currentImageUrl != null || _selectedImageFile != null
+                          ? 'Tap to change image'
+                          : 'Tap to add product image',
+                      style: AppTheme.bodySmall(context).copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
                     ),
                   ),
                   const SizedBox(height: AppTheme.spacing48),
@@ -372,19 +520,60 @@ class _ProductFormScreenNewState extends State<ProductFormScreenNew>
                       const SizedBox(width: AppTheme.spacing16),
                       Expanded(
                         flex: 2,
-                        child: ModernButton(
-                          text: widget.product == null ? 'Add Product' : 'Save Changes',
-                          icon: widget.product == null
-                              ? Icons.add_rounded
-                              : Icons.save_rounded,
-                          gradient: LinearGradient(
-                            colors: [
-                              theme.colorScheme.primary,
-                              theme.colorScheme.secondary,
-                            ],
-                          ),
-                          onPressed: _saveProduct,
-                        ),
+                        child: _isUploadingImage
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: AppTheme.spacing16,
+                                ),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      theme.colorScheme.primary,
+                                      theme.colorScheme.secondary,
+                                    ],
+                                  ),
+                                  borderRadius:
+                                      BorderRadius.circular(AppTheme.radiusLarge),
+                                ),
+                                child: Center(
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            theme.colorScheme.onPrimary,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppTheme.spacing12),
+                                      Text(
+                                        'Uploading...',
+                                        style: AppTheme.bodyLarge(context).copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: theme.colorScheme.onPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : ModernButton(
+                                text: widget.product == null ? 'Add Product' : 'Save Changes',
+                                icon: widget.product == null
+                                    ? Icons.add_rounded
+                                    : Icons.save_rounded,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    theme.colorScheme.primary,
+                                    theme.colorScheme.secondary,
+                                  ],
+                                ),
+                                onPressed: _saveProduct,
+                              ),
                       ),
                     ],
                   ),
@@ -491,5 +680,34 @@ class _ProductFormScreenNewState extends State<ProductFormScreenNew>
       ),
       validator: validator,
     );
+  }
+
+  Widget _buildImagePreview(dynamic imageFile, ThemeData theme) {
+    if (kIsWeb) {
+      // On web, imageFile is XFile
+      return Image.network(
+        (imageFile as XFile).path,
+        fit: BoxFit.cover,
+        width: 120,
+        height: 120,
+        errorBuilder: (context, error, stackTrace) {
+          return Icon(
+            Icons.inventory_2_rounded,
+            size: 56,
+            color: theme.colorScheme.onPrimary,
+          );
+        },
+      );
+    } else {
+      // On mobile/desktop, imageFile is File from dart:io
+      // Use helper to get the correct File type
+      final file = getFileForImage(imageFile);
+      return Image.file(
+        file,
+        fit: BoxFit.cover,
+        width: 120,
+        height: 120,
+      );
+    }
   }
 }

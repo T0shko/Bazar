@@ -4,6 +4,7 @@ class Product {
   double price;
   String description;
   int stockQuantity;
+  String? imageUrl;
 
   Product({
     required this.id,
@@ -11,6 +12,7 @@ class Product {
     required this.price,
     this.description = '',
     this.stockQuantity = 0,
+    this.imageUrl,
   });
 
   Product copyWith({
@@ -19,6 +21,7 @@ class Product {
     double? price,
     String? description,
     int? stockQuantity,
+    String? imageUrl,
   }) {
     return Product(
       id: id ?? this.id,
@@ -26,6 +29,7 @@ class Product {
       price: price ?? this.price,
       description: description ?? this.description,
       stockQuantity: stockQuantity ?? this.stockQuantity,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 
@@ -36,6 +40,7 @@ class Product {
       'price': price,
       'description': description,
       'stock_quantity': stockQuantity,
+      'image_url': imageUrl,
       'created_at': DateTime.now().toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
     };
@@ -48,6 +53,7 @@ class Product {
       price: (json['price'] as num).toDouble(),
       description: json['description'] as String? ?? '',
       stockQuantity: json['stock_quantity'] as int? ?? 0,
+      imageUrl: json['image_url'] as String?,
     );
   }
 }
