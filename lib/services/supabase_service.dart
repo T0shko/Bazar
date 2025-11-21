@@ -1,3 +1,4 @@
+// Platform-specific imports
 import 'dart:io' if (dart.library.html) 'dart:html';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -361,6 +362,7 @@ class SupabaseService {
       } else {
         // On mobile/desktop, upload File directly
         // File type is dart:io.File on mobile/desktop
+        // ignore: avoid_as
         final file = imageFile as File;
         await _client.storage.from(_productImagesBucket).upload(
           filePath,

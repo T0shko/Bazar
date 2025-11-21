@@ -751,67 +751,84 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   Widget _buildCalendarTab(Color textColor, Color mutedText, ColorScheme scheme) {
     final dailyCounts = _stats['daily_counts'] as Map<String, int>? ?? {};
     
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(AppTheme.spacing16),
-          child: ModernCard(
-            child: TableCalendar(
-            firstDay: DateTime.utc(2020, 1, 1),
-            lastDay: DateTime.utc(2030, 12, 31),
-            focusedDay: _focusedDay,
-            selectedDayPredicate: (day) => isSameDay(_selectedDate, day),
-            calendarFormat: _calendarFormat,
-            eventLoader: (day) {
-              final dateKey = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-              final count = dailyCounts[dateKey] ?? 0;
-              return count > 0 ? [count] : [];
-            },
-            onDaySelected: (selectedDay, focusedDay) {
-              setState(() {
-                _selectedDate = selectedDay;
-                _focusedDay = focusedDay;
-              });
-              _loadData();
-            },
-            onFormatChanged: (format) {
-              setState(() {
-                _calendarFormat = format;
-              });
-            },
-            onPageChanged: (focusedDay) {
-              setState(() {
-                _focusedDay = focusedDay;
-                _selectedDate = focusedDay; // Update selected date when navigating months
-              });
-              _loadData(); // Reload data when month changes
-            },
-            calendarStyle: CalendarStyle(
-              todayDecoration: BoxDecoration(
-                color: scheme.primary.withValues(alpha: 0.3),
-                shape: BoxShape.circle,
-              ),
-              selectedDecoration: BoxDecoration(
-                color: scheme.primary,
-                shape: BoxShape.circle,
-              ),
-              markerDecoration: BoxDecoration(
-                color: scheme.secondary,
-                shape: BoxShape.circle,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate available height and constrain calendar to max 60% of screen
+        final maxCalendarHeight = constraints.maxHeight * 0.6;
+        
+        return Column(
+          children: [
+            Flexible(
+              fit: FlexFit.loose,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: maxCalendarHeight,
+                ),
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppTheme.spacing16),
+                    child: ModernCard(
+                      child: TableCalendar(
+                        firstDay: DateTime.utc(2020, 1, 1),
+                        lastDay: DateTime.utc(2030, 12, 31),
+                        focusedDay: _focusedDay,
+                        selectedDayPredicate: (day) => isSameDay(_selectedDate, day),
+                        calendarFormat: _calendarFormat,
+                        eventLoader: (day) {
+                          final dateKey = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+                          final count = dailyCounts[dateKey] ?? 0;
+                          return count > 0 ? [count] : [];
+                        },
+                        onDaySelected: (selectedDay, focusedDay) {
+                          setState(() {
+                            _selectedDate = selectedDay;
+                            _focusedDay = focusedDay;
+                          });
+                          _loadData();
+                        },
+                        onFormatChanged: (format) {
+                          setState(() {
+                            _calendarFormat = format;
+                          });
+                        },
+                        onPageChanged: (focusedDay) {
+                          setState(() {
+                            _focusedDay = focusedDay;
+                            _selectedDate = focusedDay; // Update selected date when navigating months
+                          });
+                          _loadData(); // Reload data when month changes
+                        },
+                        calendarStyle: CalendarStyle(
+                          todayDecoration: BoxDecoration(
+                            color: scheme.primary.withValues(alpha: 0.3),
+                            shape: BoxShape.circle,
+                          ),
+                          selectedDecoration: BoxDecoration(
+                            color: scheme.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          markerDecoration: BoxDecoration(
+                            color: scheme.secondary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        headerStyle: HeaderStyle(
+                          formatButtonVisible: true,
+                          titleCentered: true,
+                          formatButtonShowsNext: false,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-            headerStyle: HeaderStyle(
-              formatButtonVisible: true,
-              titleCentered: true,
-              formatButtonShowsNext: false,
+            Expanded(
+              child: _buildDayDetails(dailyCounts, textColor, mutedText, scheme),
             ),
-            ),
-          ),
-        ),
-        Expanded(
-          child: _buildDayDetails(dailyCounts, textColor, mutedText, scheme),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -835,60 +852,65 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     return Padding(
       padding: const EdgeInsets.all(AppTheme.spacing16),
       child: ModernCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(AppTheme.spacing16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
-                    style: AppTheme.heading2(context).copyWith(color: textColor),
-                  ),
-                  const SizedBox(height: AppTheme.spacing8),
-                  Text(
-                    '$count actions',
-                    style: AppTheme.bodyMedium(context).copyWith(color: mutedText),
-                  ),
-                ],
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(AppTheme.spacing16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      DateFormat('EEEE, MMMM d, yyyy').format(_selectedDate),
+                      style: AppTheme.heading2(context).copyWith(color: textColor),
+                    ),
+                    const SizedBox(height: AppTheme.spacing8),
+                    Text(
+                      '$count actions',
+                      style: AppTheme.bodyMedium(context).copyWith(color: mutedText),
+                    ),
+                  ],
+                ),
               ),
             ),
-            Expanded(
-              child: dayLogs.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppTheme.spacing32),
-                        child: Text(
-                          'No actions on this day',
-                          style: AppTheme.bodyMedium(context).copyWith(color: mutedText),
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: dayLogs.length,
-                      itemBuilder: (context, index) {
-                        final log = dayLogs[index];
-                        return ListTile(
-                          leading: Icon(
-                            Icons.circle,
-                            size: 8,
-                            color: scheme.primary,
-                          ),
-                          title: Text(
-                            log.description,
-                            style: AppTheme.bodyMedium(context).copyWith(color: textColor),
-                          ),
-                          subtitle: Text(
-                            '${log.username ?? 'Unknown'} • ${DateFormat('HH:mm').format(log.timestamp)}',
-                            style: AppTheme.bodySmall(context).copyWith(color: mutedText),
-                          ),
-                        );
-                      },
+            if (dayLogs.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppTheme.spacing32),
+                    child: Text(
+                      'No actions on this day',
+                      style: AppTheme.bodyMedium(context).copyWith(color: mutedText),
                     ),
-            ),
+                  ),
+                ),
+              )
+            else
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final log = dayLogs[index];
+                    return ListTile(
+                      leading: Icon(
+                        Icons.circle,
+                        size: 8,
+                        color: scheme.primary,
+                      ),
+                      title: Text(
+                        log.description,
+                        style: AppTheme.bodyMedium(context).copyWith(color: textColor),
+                      ),
+                      subtitle: Text(
+                        '${log.username ?? 'Unknown'} • ${DateFormat('HH:mm').format(log.timestamp)}',
+                        style: AppTheme.bodySmall(context).copyWith(color: mutedText),
+                      ),
+                    );
+                  },
+                  childCount: dayLogs.length,
+                ),
+              ),
           ],
         ),
       ),

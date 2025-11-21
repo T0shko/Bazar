@@ -68,12 +68,15 @@ class _DonationScreenNewState extends State<DonationScreenNew> {
           ),
         ),
         body: SafeArea(
-          child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppTheme.spacing24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(AppTheme.spacing24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                 const SizedBox(height: AppTheme.spacing32),
                 // Donation Icon
                 GlassContainer(
@@ -193,8 +196,10 @@ class _DonationScreenNewState extends State<DonationScreenNew> {
               ],
             ),
           ),
-         ),
+        );
+      },
         ),
+      ),
       ),
     );
   }

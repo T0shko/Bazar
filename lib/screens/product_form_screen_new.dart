@@ -220,22 +220,25 @@ class _ProductFormScreenNewState extends State<ProductFormScreenNew>
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          AppTheme.spacing20,
-          MediaQuery.of(context).padding.top + 80,
-          AppTheme.spacing20,
-          AppTheme.spacing20,
-        ),
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              AppTheme.spacing20,
+              MediaQuery.of(context).padding.top + 80,
+              AppTheme.spacing20,
+              AppTheme.spacing20,
+            ),
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                   // Product Image Upload
                   Center(
                     child: TweenAnimationBuilder<double>(
@@ -582,7 +585,9 @@ class _ProductFormScreenNewState extends State<ProductFormScreenNew>
               ),
             ),
           ),
-        ),
+          ),
+        );
+        },
       ),
     );
   }

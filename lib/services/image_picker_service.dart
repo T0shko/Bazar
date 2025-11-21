@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io' if (dart.library.html) 'dart:html';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'image_cropper_helper.dart';
@@ -68,7 +68,8 @@ class ImagePickerService {
       );
     } else {
       // Check if we're on macOS - camera requires delegate setup
-      final isMacOS = !kIsWeb && Platform.isMacOS;
+      // Use defaultTargetPlatform which works on all platforms including web
+      final isMacOS = defaultTargetPlatform == TargetPlatform.macOS;
       
       // On macOS, only show gallery (camera requires delegate setup)
       // On iOS/Android, show both options

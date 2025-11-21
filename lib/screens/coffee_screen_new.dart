@@ -68,12 +68,15 @@ class _CoffeeScreenNewState extends State<CoffeeScreenNew> {
           ),
         ),
         body: SafeArea(
-          child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppTheme.spacing24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(AppTheme.spacing24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                 const SizedBox(height: AppTheme.spacing32),
                 GlassContainer(
                   padding: const EdgeInsets.all(AppTheme.spacing32),
@@ -182,8 +185,10 @@ class _CoffeeScreenNewState extends State<CoffeeScreenNew> {
               ],
             ),
           ),
-         ),
+        );
+      },
         ),
+      ),
       ),
     );
   }
